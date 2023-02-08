@@ -1,0 +1,53 @@
+<idea-plugin>
+  <id>com-cs-org</id>
+  <name>Simple Object Copy</name>
+  <version>1.0</version>
+  <vendor email="993198101@qq.com" url="https://www.hello-inc.com">com-cs-org</vendor>
+
+  <product-descriptor code="PBEANCONVERTER" release-date="20220510" release-version="20229"/>
+  <version>2022.1.9</version>
+
+  <description>
+    <![CDATA[
+          The mutual transformation of DTO, VO, POJO, entity and other objects that generates the transformation code through one construction. No invasion, fast, especially supporting complex objects (object contains object, object contains list, set).<br/>
+
+          Features:<br/>
+          - Generator O2O<br/>
+          - Bean converter<br/>
+          - Copy properties and etc.<br/>
+
+          Instructions:<br/>
+
+          Write your own method to participate in and return. Then position cursor in method and<br/>
+          right-click to open generate, or command + N, ALT + INSERT or some other shortcut keys, and click plug-in to execute.Then the code is generated<br/>
+
+          DTO, VO, POJO、entity等对象的相互转化，一键代码生成，无入侵，速度快，尤其支持复杂对象（对象包含对象，对象包含list、set）。<br/>
+          定义好bean的转化方法和出入参，光标定位于方法中，右键鼠标点击generate菜单，或使用快捷键command + N, ALT + INSERT,然后点击插件 代码就生成好了。<br/>
+      ]]>
+  </description>
+
+  <change-notes>
+
+    <![CDATA[
+        1.Canonical generic initialization code<br/>
+        2.fix Object self-contained StackOverflowError<br/>
+        1.规范泛型初始化代码,Result<User> result = new Result<>();<br/>
+        2.修复对象自包含StackOverflowError<br/>
+    ]]>
+  </change-notes>
+
+  <idea-version since-build="173.0"/>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.java</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+  </extensions>
+
+  <actions>
+    <action id="genCopyMethod" class="com.cs.BeanConvertAction" text="genCopyMethod" description="genCopyMethod">
+      <add-to-group group-id="GenerateGroup" anchor="last"/>
+    </action>
+  </actions>
+
+</idea-plugin>
