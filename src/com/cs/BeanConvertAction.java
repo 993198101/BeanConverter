@@ -45,12 +45,7 @@ public class BeanConvertAction extends AnAction {
         if (returnType == null) {
             return;
         }
-        PsiParameter psiParameter = psiMethod.getParameterList().getParameters()[0];
-        Project project = psiMethod.getProject();
-        List<String> methodTextList = new ArrayList<>();
-        doGetMethodText(returnType, psiParameter.getType(), methodTextList, psiMethod.getContainingClass(), new HashSet<>());
-        PsiMethod last = psiMethod;
-        List<PsiMethod> shortList = new ArrayList<>();
+     
         for (String methodText : methodTextList) {
             PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
             PsiMethod toMethod = elementFactory.createMethodFromText(methodText, null);
@@ -94,124 +89,12 @@ public class BeanConvertAction extends AnAction {
         Map<String, PsiType> paramGenericMap = getGenericMap(paramClass, paramClassType);
 
 
-        StringBuilder builder = new StringBuilder("public static " + returnClassName + " convertTo" + ((PsiClassReferenceType) returnClassType).getClassName() + " (");
-        if (set.contains(builder.toString())) {
-            return;
-        }
-        set.add(builder.toString());
-        builder.append(paramClassName + " item) {\n");
-
-        builder.append("if (item == null){\n").append("return null;\n}\n");
-
-        Optional<PsiMethod> first = Arrays.stream(returnClass.getConstructors()).filter(it -> it.getParameterList().getParameters().length != 0).max(Comparator.comparing(it -> it.getParameterList().getParameters().length));
-        Optional<PsiMethod> noArgs = Arrays.stream(returnClass.getConstructors()).filter(it -> it.getParameterList().getParameters().length == 0).findFirst();
-
-        if (hasAnnotation(returnClass, "lombok.Builder")) {
-            PsiField[] returnFields = returnClass.getAllFields();
-            StringBuilder parameterBuilder = new StringBuilder("");
-            StringBuilder topBuilder = new StringBuilder("");
-
-            for (PsiField field : returnFields) {
-                PsiModifierList modifierList = field.getModifierList();
-                if (modifierList == null || modifierList.hasModifierProperty(PsiModifier.STATIC) || modifierList
-                        .hasModifierProperty(PsiModifier.FINAL) || modifierList
-                        .hasModifierProperty(PsiModifier.SYNCHRONIZED)) {
-                    continue;
-                }
-                PsiField paramField = paramClass.findFieldByName(field.getNameIdentifier().getText(), false);
-                if (paramField == null) {
-                    parameterBuilder.append("." + field.getNameIdentifier().getText() + "(item.get"
-                            + getFirstUpperCase(field.getNameIdentifier().getText()) + "())\n");
-                    continue;
-                }
-                PsiType returnFieldType = convertGenericMap(returnGenericMap, field.getType());
-                PsiType paramFieldType = convertGenericMap(paramGenericMap, paramField.getType());
-
-
-                if (isListOrSet(returnFieldType, paramFieldType)) {
-                    if (isSameSubType(returnFieldType, paramFieldType)) {
-                        parameterBuilder.append("." + field.getNameIdentifier().getText() + "(item.get" + getFirstUpperCase(field.getNameIdentifier().getText()) + "()");
-                    } else {
-
-                        PsiType genericType = null;
-                        for (PsiType parameter : ((PsiClassReferenceType) returnFieldType).getParameters()) {
-                            genericType = parameter;
-                        }
-                        PsiType fromGenericType = null;
-                        for (PsiType parameter : ((PsiClassReferenceType) paramFieldType).getParameters()) {
-                            fromGenericType = parameter;
-                        }
-
-                        topBuilder.append(returnFieldType.getCanonicalText() + " " + field.getNameIdentifier().getText() + "Resp = java.util.Optional.ofNullable(item.get" + getFirstUpperCase(field.getNameIdentifier().getText()) + "())\n.map(it -> it.stream().map(" + psiClass.getName() + "::convertTo" + genericType.getPresentableText() + ").collect(java.util.stream.Collectors.toList()))\n.orElse(null);\n");
-                        parameterBuilder.append("." + field.getNameIdentifier().getText() + "(" + field.getNameIdentifier().getText() + "Resp)\n");
-
-                        doGetMethodText(genericType, fromGenericType, result, psiClass, set);
-                    }
-
-
-                } else if (isDiffObjAndNotPrimitiveType(returnFieldType, paramFieldType)) {
-                    parameterBuilder.append("." + field.getNameIdentifier().getText() + "(" + "convertTo" + returnFieldType.getPresentableText() + "(item.get"
-                            + getFirstUpperCase(field.getNameIdentifier().getText()) + "()))\n");
-                    doGetMethodText(returnFieldType, paramFieldType, result, psiClass, set);
-                } else {
-                    parameterBuilder.append("." + field.getNameIdentifier().getText() + "(item.get"
-                            + getFirstUpperCase(field.getNameIdentifier().getText()) + "())\n");
-                }
-
-            }
+     
             builder.append(topBuilder);
             String parameterString = parameterBuilder.toString();
             builder.append("return " + returnClassName + ".builder()\n" + parameterString + ".build();\n");
 
-        } else if (first.isPresent() && !noArgs.isPresent()) {
-            PsiParameter[] parameters = first.get().getParameterList().getParameters();
-            StringBuilder parameterBuilder = new StringBuilder("");
-            StringBuilder topBuilder = new StringBuilder("");
-
-            for (PsiParameter psiParameter : parameters) {
-                PsiModifierList modifierList = psiParameter.getModifierList();
-                if (modifierList == null || modifierList.hasModifierProperty(PsiModifier.STATIC) || modifierList
-                        .hasModifierProperty(PsiModifier.FINAL) || modifierList
-                        .hasModifierProperty(PsiModifier.SYNCHRONIZED)) {
-                    continue;
-                }
-                String returnFileName = null;
-                if (psiParameter.getNameIdentifier() != null) {
-                    returnFileName = psiParameter.getNameIdentifier().getText();
-                } else {
-                    returnFileName = psiParameter.getText().substring(psiParameter.getText().indexOf(" ") + 1);
-                }
-                PsiField paramField = paramClass.findFieldByName(returnFileName, false);
-                if (paramField == null) {
-                    parameterBuilder.append(", ");
-                    continue;
-                }
-                PsiType returnFieldType = convertGenericMap(returnGenericMap, psiParameter.getType());
-                PsiType paramFieldType = convertGenericMap(paramGenericMap, paramField.getType());
-
-
-                if (isListOrSet(returnFieldType, paramFieldType)) {
-                    if (isSameSubType(returnFieldType, paramFieldType)) {
-                        parameterBuilder.append(",item.get" + getFirstUpperCase(returnFileName) + "()");
-                    } else {
-
-                        PsiType genericType = null;
-                        for (PsiType parameter : ((PsiClassReferenceType) returnFieldType).getParameters()) {
-                            genericType = parameter;
-                        }
-                        PsiType fromGenericType = null;
-                        for (PsiType parameter : ((PsiClassReferenceType) paramFieldType).getParameters()) {
-                            fromGenericType = parameter;
-                        }
-
-                        topBuilder.append(returnFieldType.getCanonicalText() + " " + returnFileName + "Resp = java.util.Optional.ofNullable(item.get" + getFirstUpperCase(returnFileName) + "())\n.map(it -> it.stream().map(" + psiClass.getName() + "::convertTo" + genericType.getPresentableText() + ").collect(java.util.stream.Collectors.toList()))\n.orElse(null);\n");
-
-                        parameterBuilder.append("," + returnFileName + "Resp");
-                        doGetMethodText(genericType, fromGenericType, result, psiClass, set);
-                    }
-
-
-                } else if (isDiffObjAndNotPrimitiveType(returnFieldType, paramFieldType)) {
+      amFieldType)) {
                     parameterBuilder.append(",convertTo" + returnFieldType.getPresentableText() + "(item.get"
                             + getFirstUpperCase(returnFileName) + "())");
                     doGetMethodText(returnFieldType, paramFieldType, result, psiClass, set);
@@ -251,17 +134,7 @@ public class BeanConvertAction extends AnAction {
                     } else {
                         builder.append(paramFieldType.getCanonicalText() + " " + paramField.getNameIdentifier().getText() + " = item.get" + getFirstUpperCase(field.getNameIdentifier().getText()) + "();\n");
                         builder.append("if(" + paramField.getNameIdentifier().getText() + " == null){\n");
-                        builder.append(returnObjName + ".set" + getFirstUpperCase(field.getNameIdentifier().getText()) + "(null);\n}\n");
-                        builder.append("else {\n");
-                        PsiType genericType = null;
-                        for (PsiType parameter : ((PsiClassReferenceType) returnFieldType).getParameters()) {
-                            genericType = parameter;
-                        }
-                        PsiType fromGenericType = null;
-                        for (PsiType parameter : ((PsiClassReferenceType) paramFieldType).getParameters()) {
-                            fromGenericType = parameter;
-                        }
-
+               
                         builder.append(returnObjName + ".set" + getFirstUpperCase(field.getNameIdentifier().getText()) + "(" + paramField.getNameIdentifier().getText() + ".stream().map(" + psiClass.getName() + "::convertTo" + genericType.getPresentableText() + ").collect(java.util.stream.Collectors.toList()));\n");
                         builder.append("}\n");
                         doGetMethodText(genericType, fromGenericType, result, psiClass, set);
@@ -287,10 +160,8 @@ public class BeanConvertAction extends AnAction {
 
     private boolean hasAnnotation(PsiClass returnClass, String annotation) {
 
-        PsiModifierList psiModifierList = returnClass.getModifierList();
         if (psiModifierList != null) {
             PsiAnnotation[] annotations = psiModifierList.getAnnotations();
-            for (PsiAnnotation psiAnnotation : annotations) {
                 if (Objects.equals(psiAnnotation.getQualifiedName(), annotation)) {
                     return true;
                 }
@@ -366,12 +237,6 @@ public class BeanConvertAction extends AnAction {
     private PsiElement getPsiElement(AnActionEvent e) {
         PsiFile psiFile = e.getData(LangDataKeys.PSI_FILE);
         Editor editor = e.getData(PlatformDataKeys.EDITOR);
-        if (psiFile == null || editor == null) {
-            e.getPresentation().setEnabled(false);
-            return null;
-        }
-        //用来获取当前光标处的PsiElement
-        int offset = editor.getCaretModel().getOffset();
         return psiFile.findElementAt(offset);
     }
 }
